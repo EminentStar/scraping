@@ -2,6 +2,9 @@
 
 {% block content %}
     <div class="content container">
-
+        <form method="POST" class="url-form">{% csrf_token %}
+            {{ form }}
+            <button type="submit" class="fetch btn btn-default">Scrap</button>
+        </form>
     </div>
-{% endblock content %}
+{% endblock %}
