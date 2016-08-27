@@ -7,4 +7,12 @@
             <button type="submit" class="fetch btn btn-default">Scrap</button>
         </form>
     </div>
-{% endblock %}
+    <br>
+    <div class="content scrapped">
+        {% if api %}
+            <p>
+                {{ api }}
+            </p>
+        {% endif %}
+    </div>
+{% endblock content %}
