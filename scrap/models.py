@@ -10,6 +10,7 @@ class ScrappedUrl(models.Model):
     type = models.CharField(max_length=50)
     image = models.CharField(max_length=2000)
     description = models.TextField()
+    status_code = models.IntegerField(default=200)
     scrapped_time = models.DateTimeField()
     expiry_time = models.DateTimeField()
 
