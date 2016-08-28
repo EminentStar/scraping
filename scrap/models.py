@@ -6,6 +6,7 @@ from django.utils import timezone
 
 class ScrappedUrl(models.Model):
     title = models.CharField(max_length=200)
+    input_url = models.CharField(max_length=2000)
     url = models.CharField(max_length=2000)
     type = models.CharField(max_length=50)
     image = models.CharField(max_length=2000)
@@ -15,4 +16,4 @@ class ScrappedUrl(models.Model):
     expiry_time = models.DateTimeField()
 
     def __unicode__(self):
-        return self.url
+        return self.input_url

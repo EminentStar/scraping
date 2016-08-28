@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from django.utils import timezone
 import datetime
 import logging
 import re
@@ -20,8 +19,6 @@ def main_view(request):
         logger.warning('POST method')
         """input 태그의 url 스크래핑을 시도한다."""
         api = scrap_url(request)
-        print("api:::")
-        print(api)
         form = UrlForm()
         return render(request, 'scrap/main_view.html', {'form': form, 'api': api})
     else:
@@ -30,15 +27,47 @@ def main_view(request):
     return render(request, 'scrap/main_view.html', {'form': form})
 
 
+def scrap_url(request):
+    url = get_url_from_request(request)
+    if is_scrapped(url) is False: # scrap된 적이 있는 url인지 확인
+        return get_api(url)
+    else: # Database에 캐싱되있던 api데이터를 가져온다
+        logger.warning("url info ALREADY exists")
+        return get_api_from_database(url)
+
+
 def get_url_from_request(request):
     r = dict(request.POST)
     url = r['url'][0]
     return url
 
 
+def is_scrapped(url):
+    s_url = ScrappedUrl.objects.filter(input_url=url)
+    return len(s_url) != 0
+
+
+def get_api(url):
+    logger.warning("Entry of get_api method")
+    api = {}
+    try:
+        r = requests.get(url)
+        logger.warning("After request url")
+        html = r.text
+        status_code = {'status_code': r.status_code}
+        tags = get_tags(html)
+        times = get_time_api()
+        api = dict(tags.items() | times.items() | status_code.items())
+        save_scrappedurl_object(api, url)
+    except ConnectionError as e:
+        logger.error(e)
+    finally:
+        return api
+
+
 def get_tags(html):
     logger.warning("entry of get_tags method")
-    soup = BeautifulSoup(html)
+    soup = BeautifulSoup(html, "lxml")
     title = soup.find('meta', property='og:title')
     url = soup.find('meta', property='og:url')
     type = soup.find('meta', property='og:type')
@@ -56,52 +85,45 @@ def get_tags(html):
 def get_time_api():
     scrapped_time = datetime.datetime.now()
     expiry_time = scrapped_time + datetime.timedelta(days=1)
-    logger.warning(scrapped_time)
-    logger.warning(expiry_time)
+    logger.warning(scrapped_time.strftime("%Y-%m-%d %H:%M"))
+    logger.warning(expiry_time.strftime("%Y-%m-%d %H:%M"))
     return {
         'scrapped_time': scrapped_time,
         'expiry_time': expiry_time,
     }
 
 
-def get_api(url):
-    logger.warning("Entry of get_api method")
-    api = {}
-    try:
-        r = requests.get(url)
-        logger.warning("After request url")
-        html = r.text
-        status_code = {'status_code': r.status_code}
-        tags = get_tags(html)
-        times = get_time_api()
-        api = dict(tags.items() | times.items() | status_code.items())
-    except ConnectionError as e:
-        logger.error(e)
-    finally:
-        return api
+def save_scrappedurl_object(api, input_url):
+    url_object = ScrappedUrl(title=api['title'],
+                             input_url=input_url,
+                             url=api['url'],
+                             type=api['type'],
+                             image=api['image'],
+                             description=api['description'],
+                             status_code=api['status_code'],
+                             scrapped_time=api['scrapped_time'],
+                             expiry_time=api['expiry_time'])
 
-
-def scrap_url(request):
-    url = get_url_from_request(request)
-    if is_scrapped(url) is False: # scrap된 적이 있는 url인지 확인
-        return get_api(url)
-    else: # Database에 캐싱되있던 api데이터를 가져온다
-        return get_api_from_database(url)
+    logger.warning(url_object)
+    url_object.save()
 
 
 def get_api_from_database(url):
-    api_object = ScrappedUrl.objects.filter(url=url)
+    api_object = ScrappedUrl.objects.filter(input_url=url)
+    logger.warning(api_object)
+    api_dict = list(api_object)[0]
+    logger.warning(api_dict)
     return {
-        'title': api_object.title,
-        'url': api_object.url,
-        'type': api_object.type,
-        'image': api_object.image,
-        'description': api_object.description,
-        'scrapped_time': api_object.scrapped_time,
-        'expiry_time': api_object.expiry_time,
+        'title': api_dict.title,
+        'url': api_dict.url,
+        'type': api_dict.type,
+        'image': api_dict.image,
+        'description': api_dict.description,
+        'scrapped_time': api_dict.scrapped_time,
+        'expiry_time': api_dict.expiry_time,
     }
 
 
-def is_scrapped(url):
-    s_url = ScrappedUrl.objects.filter(url=url)
-    return s_url is True
+
+
+
