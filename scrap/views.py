@@ -29,11 +29,20 @@ def main_view(request):
 
 def scrap_url(request):
     url = get_url_from_request(request)
+    url = reconstitute_url(url)
     if is_scrapped(url) is False: # scrap된 적이 있는 url인지 확인
         return get_api(url)
     else: # Database에 캐싱되있던 api데이터를 가져온다
         logger.warning("url info ALREADY exists")
         return get_api_from_database(url)
+
+
+def reconstitute_url(original_url):
+    reconstituted_url = original_url
+    reg = re.compile(r'^http://')
+    if reg.match(original_url) is None:
+        reconstituted_url = "http://" + original_url
+    return reconstituted_url
 
 
 def get_url_from_request(request):
