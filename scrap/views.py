@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.shortcuts import render
 import datetime
 import logging
@@ -62,16 +63,20 @@ def get_api(url):
     try:
         r = requests.get(url)
         logger.warning("After request url")
-        html = r.text
-        status_code = {'status_code': r.status_code}
-        tags = get_tags(html)
-        times = get_time_api()
-        api = dict(tags.items() | times.items() | status_code.items())
+        api = constitute_api(r)
         save_scrappedurl_object(api, url)
     except ConnectionError as e:
         logger.error(e)
     finally:
         return api
+
+
+def constitute_api(response):
+    html = response.text
+    status_code = {'status_code': response.status_code}
+    tags = get_tags(html)
+    times = get_time_api()
+    return dict(tags.items() | times.items() | status_code.items())
 
 
 def get_tags(html):
