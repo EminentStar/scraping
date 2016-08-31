@@ -1,10 +1,15 @@
+"""
+django의 model을 정의
+"""
 from django.db import models
-from django.utils import timezone
 
 # Create your models here.
 
 
 class ScrappedUrl(models.Model):
+    """
+    스크래핑한 url의 API 정보 및 사용자 입력 url을 저장하는 model
+    """
     title = models.CharField(max_length=200)
     input_url = models.CharField(max_length=2000)
     url = models.CharField(max_length=2000)
