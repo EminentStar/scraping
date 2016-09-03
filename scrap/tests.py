@@ -37,6 +37,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(res_2, 'http://www.naver.com')
         self.assertEqual(res_3, 'http://naver.com')
 
+
     def test_constitute_api(self):
         """
         constitute_api 함수를 테스트하는 함수

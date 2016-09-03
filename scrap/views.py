@@ -31,32 +31,41 @@ def main_view(request):
     GET:param request: request
     GET:return: 새로고침된 main_view.html이 렌더링된 것을 리턴
     """
-    if request.method == 'POST': # 웹 스크래핑 버튼을 눌렀을 때
-        LOGGER.warning('POST method')
+    dict_return = {}
+    form = UrlForm()
 
-        api = scrap_url(request) # input 태그의 url 스크래핑을 시도한다.
-        form = UrlForm()
-        return render(request, 'scrap/main_view.html', {'form': form, 'api': api})
-    else:
-        LOGGER.warning('GET method') # 새로고침을 했을 때
-        form = UrlForm()
-    return render(request, 'scrap/main_view.html', {'form': form})
+    if request.method == 'POST':  # 웹 스크래핑 버튼을 눌렀을 때
+        LOGGER.warning('POST method')
+        api = scrap_url(request)
+        dict_return['api'] = api
+    else:  # 새로고침을 했을 때
+        LOGGER.warning('GET method')
+
+    dict_return['form'] = form
+    return render(request, 'scrap/main_view.html', dict_return)
 
 
 def scrap_url(request):
     """
-    url을 스크래핑하는 함수
+    URL을 스크래핑하는 함수.
+    사용자의 버튼 클릭에 따라
+        기존에 스크래핑된 것을 가져올 수도 있고,
+        새로 스크래핑할 수도 있다.
 
-    :param request: 뷰에서 받은 request
+    :param request: request
     :return: 스크래핑된 url의 데이터를 포함한 API
     """
     url = get_url_from_request(request)
     url = reconstitute_url(url)
-    if is_scrapped(url) is False: # scrap된 적이 있는 url인지 확인
-        return get_api(url)
-    else: # Database에 캐싱되있던 api데이터를 가져온다
-        LOGGER.warning("url info ALREADY exists")
-        return get_api_from_database(url)
+
+    if 'action_scrap_cached' in request.POST:
+        LOGGER.warning('Scrap Cached')
+        if is_scrapped(url) is True:  # scrap된 적이 있는 url인지 확인
+            LOGGER.warning("url info ALREADY exists")
+            return get_api_from_database(url)
+
+    LOGGER.warning('Scrap New')
+    return get_api(url)
 
 
 def reconstitute_url(original_url):

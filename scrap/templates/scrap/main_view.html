@@ -3,11 +3,14 @@
 {% block content %}
     <div class="row">
         <form method="POST" class="col s12">{% csrf_token %}
-            <div class="input-field col s9">
+            <div class="input-field col s8">
                 {{ form }}
             </div>
-            <button class="btn waves-effect waves-light btn-large col s3" type="submit" name="action">
-                Scrap
+            <button class="btn waves-effect waves-light btn-large col s2" type="submit" name="action_scrap_cached">
+                Scrap Cached
+            </button>
+            <button class="btn waves-effect waves-light btn-large col s2" type="submit" name="action_scrap_new">
+                Scrap New
             </button>
         </form>
     </div>
