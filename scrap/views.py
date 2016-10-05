@@ -11,7 +11,7 @@ import re
 from django.shortcuts import render
 import requests
 from bs4 import BeautifulSoup
-
+import redis
 
 from .forms import UrlForm
 from .models import ScrappedUrl
@@ -19,6 +19,10 @@ from .models import ScrappedUrl
 # Create your views here.
 
 LOGGER = logging.getLogger(__name__)
+
+redis_client1 = redis.StrictRedis(host = 'localhost' , port = 6379)
+redis_client2 = redis.StrictRedis(host = 'localhost' , port = 6380)
+redis_client3 = redis.StrictRedis(host = 'localhost' , port = 6381)
 
 
 def main_view(request):
@@ -33,6 +37,19 @@ def main_view(request):
     """
     dict_return = {}
     form = UrlForm()
+#    redis_client1.set('sample', 'Hello World')    
+    print(redis_client1)
+    print(redis_client2)
+    print(redis_client3)
+
+    hello = redis_client1.get('sample') 
+    if hello is not None:
+        hello = hello.decode()
+    else:
+        hello = "None"
+    print('test:::' + hello)
+    
+    hello = redis_client2.get('sample') 
 
     if request.method == 'POST':  # 웹 스크래핑 버튼을 눌렀을 때
         LOGGER.warning('POST method')
