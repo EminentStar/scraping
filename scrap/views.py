@@ -15,15 +15,33 @@ import redis
 
 from .forms import UrlForm
 from .models import ScrappedUrl
+from .consistent_hashing import ConsistentHashingPartitioning
 
 # Create your views here.
+HOST_IDX = 0
+PORT_IDX = 1
 
 LOGGER = logging.getLogger(__name__)
 
-redis_client1 = redis.StrictRedis(host = 'localhost' , port = 6379)
-redis_client2 = redis.StrictRedis(host = 'localhost' , port = 6380)
-redis_client3 = redis.StrictRedis(host = 'localhost' , port = 6381)
+IP = 'localhost'
+PORT_1 = 6379
+PORT_2 = 6380
+PORT_3 = 6381
 
+redis_client1 = redis.StrictRedis(host = IP, port = PORT_1)
+redis_client2 = redis.StrictRedis(host = IP, port = PORT_2)
+redis_client3 = redis.StrictRedis(host = IP, port = PORT_3)
+
+nodelist = []
+nodelist.append((IP, str(PORT_1)))
+nodelist.append((IP, str(PORT_2)))
+nodelist.append((IP, str(PORT_3)))
+
+vnode_counts = 40 
+
+chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
+
+print(chashing.continuum)
 
 def main_view(request):
     """
@@ -37,29 +55,40 @@ def main_view(request):
     """
     dict_return = {}
     form = UrlForm()
-#    redis_client1.set('sample', 'Hello World')    
-    print(redis_client1)
-    print(redis_client2)
-    print(redis_client3)
-
-    hello = redis_client1.get('sample') 
-    if hello is not None:
-        hello = hello.decode()
-    else:
-        hello = "None"
-    print('test:::' + hello)
-    
-    hello = redis_client2.get('sample') 
 
     if request.method == 'POST':  # 웹 스크래핑 버튼을 눌렀을 때
         LOGGER.warning('POST method')
-        api = scrap_url(request)
+        api = scrap_url_cached(request)
         dict_return['api'] = api
     else:  # 새로고침을 했을 때
         LOGGER.warning('GET method')
 
     dict_return['form'] = form
     return render(request, 'scrap/main_view.html', dict_return)
+
+
+
+def scrap_url_cached(request):
+    """
+    (분산 캐시 버전)URL을 스크래핑하는 함수.
+
+    :param request: request
+    :return: 스크래핑된 url의 데이터를 포함한 API
+    """
+    url = get_url_from_request(request)
+    url = reconstitute_url(url)
+
+    if 'action_scrap_cached' in request.POST:
+        LOGGER.warning('Scrap Cached')
+        scrapped_data = is_scrapped_from_caches(url)
+        if scrapped_data is not None:  # scrap된 적이 있는 url인지 확인
+            LOGGER.warning("url info ALREADY exists")
+            # scrapped_data를 스트링에서 json화시킨다.
+            api = eval(scrapped_data)
+            return api
+
+    LOGGER.warning('Scrap New')
+    return get_api_cache(url)
 
 
 def scrap_url(request):
@@ -111,6 +140,30 @@ def get_url_from_request(request):
     return url
 
 
+def is_scrapped_from_caches(url):
+    """
+    url이 분산 캐시에 스크래핑되어있는지 검색하는 함수
+    
+    :param url: 사용자가 입력한 url
+    :return: 캐싱되어있으면 url API 데이터(JSON), 없으면 None을 반환함.
+    """
+    cached_node = chashing.find_node_with_value(url)
+    node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+    scrapped_data = get_data_from_cache(url, node_client)
+    return scrapped_data
+
+
+def get_data_from_cache(url, node_client):
+    data = node_client.get(url)
+    if data is not None:
+        data = data.decode()
+    return data
+
+
+def set_data_to_cache(url_hash, api_str, node_client):
+    node_client.set(url_hash, api_str)
+    
+
 def is_scrapped(url):
     """
     url이 기존에 스크래핑됬는지의 여부를 확인하는 함수
@@ -120,6 +173,47 @@ def is_scrapped(url):
     """
     s_url = ScrappedUrl.objects.filter(input_url=url)
     return len(s_url) != 0
+
+
+def get_api_cache(url):
+    """
+    (분산 캐시 버전)클라이언트에 응답할 API를 형성하고 반환하는 함수
+
+    :param url: 스크래핑할 url
+    :return: 클라이언트에 응답할 API:
+        title,
+        url,
+        type,
+        image,
+        description,
+        scrapped_time,
+        expiry_time
+    """
+    LOGGER.warning("Entry of get_api method")
+    api = {}
+    try:
+        response = requests.get(url)
+        LOGGER.warning("After request url")
+        api = constitute_api(response)
+        # api 문자열을 알맞은 레디스 서버에 캐싱한다.
+        api_str = str(api)
+        save_data_to_cache(url, api_str)        
+    except ConnectionError as err:
+        LOGGER.error(err)
+
+    return api
+
+
+def save_data_to_cache(url, api_str):
+    """
+    (분산 캐시 버전)적정 캐시 서버에 api 데이터를 저장한다.
+    """
+    cached_node = chashing.find_node_with_value(url)
+    url_hash = chashing._hash(url)[0]
+    LOGGER.warning(type(url_hash))
+    LOGGER.warning(url_hash)
+    node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+    set_data_to_cache(url_hash, api_str, node_client)
 
 
 def get_api(url):

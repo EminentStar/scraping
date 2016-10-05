@@ -31,17 +31,17 @@ class ConsistentHashingPartitioning:
 
 
     def md5_hash(self, key):
-        return struct.unpack('>Q', hashlib.md5(key.encode()).digest()[0:8])
+        return struct.unpack('>I', hashlib.md5(key.encode()).digest()[0:4])
 
     
     def rebuild(self, nodelist):
-        continuum = [(hname, value, vnode, self._hash("%s:%s" % (hname, value))) \
+        continuum = [(hname, value, vnode, self._hash("%s:%s:%s" % (hname, value, vnode))) \
                 for hname, value in nodelist \
                 for vnode in range(self.vnode_counts) 
                 ]
         continuum = sorted(continuum, key=(lambda item:item[HASH_IDX]))
         return continuum
-        
+    
 
     def _hash(self, key):
         return self.hash_func(key)
@@ -62,7 +62,7 @@ class ConsistentHashingPartitioning:
             return self.continuum[FIRST]
         else: #그렇지 않으면 두번째 노드부터해서 hash보다 값이 큰 노드의 해시중 가장 근접한 노드로 간다.
             i = FIRST
-            while hash > self.continuum[i]:
+            while hash > self.continuum[i][HASH_IDX]:
                 i += 1
             return self.continuum[i]
 
