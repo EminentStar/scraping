@@ -8,6 +8,7 @@ def http_request_log_json(request):
         로그 목적: 사용자 접속횟수를 분석을 위함
     """
     log_dict = {}
+    log_dict['log_name'] = 'http-request'
     log_dict['request_time'] = get_curr_time()
     log_dict['method'] = request.method
     return json.dumps(log_dict)
@@ -19,6 +20,7 @@ def scrap_request_log_json(curr_time, url, is_error):
         로그 목적: 전체 스크랩 요청 횟수 파악, URL별 스크랩 요청 횟수 파악
     """
     log_dict = {}
+    log_dict['log_name'] = 'scrap-request'
     log_dict['request_time'] = curr_time 
     log_dict['scrapped_url'] = url
     log_dict['is_error'] = is_error
@@ -31,6 +33,7 @@ def scrap_error_log_json(curr_time, url, err_msg):
         로그 목적: 어떤 에러가 났는지에 파악
     """
     log_dict = {}
+    log_dict['log_name'] = 'scrap-error'
     log_dict['request_time'] = curr_time 
     log_dict['scrapped_url'] = url
     log_dict['err_msg'] = err_msg 
@@ -44,6 +47,7 @@ def cache_access_log_json(server_name, access_method, url):
                    각 캐시 서버별 부하 상황을 체크할 수 있기 위함.
     """
     log_dict = {}
+    log_dict['log_name'] = 'cache-access'
     log_dict['request_time'] = get_curr_time() 
     log_dict['cached_server_name'] = server_name
     log_dict['cache_method'] = access_method
@@ -57,6 +61,7 @@ def other_errors_log_json(err_msg):
         로그 목적: 스크랩을 제외한 파악가능한 모든 에러의 message를 로그화한다.
     """
     log_dict = {}
+    log_dict['log_name'] = 'other-error'
     log_dict['error_time'] = get_curr_time() 
     log_dict['error_msg'] = err_msg
     return json.dumps(log_dict)
