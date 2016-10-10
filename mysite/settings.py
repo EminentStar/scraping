@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import datetime
+from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import SysLogHandler
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -91,6 +94,59 @@ CACHES = {
             'localhost:6381',
         ],
     },
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'verbose': {
+            'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+        'http_request': {
+            'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/%s.log' % 
+                        (datetime.datetime.now().strftime('%Y-%m-%d'))),
+            'formatter': 'verbose'
+        },
+        'file_timed_rotating': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/%s.log' % 
+                        (datetime.datetime.now().strftime('%Y-%m-%d'))),
+            'formatter': 'verbose',
+            'when': 'midnight',
+        },
+#        'syslog': {
+#            'level': 'DEBUG',
+#            'class': 'logging.handlers.SysLogHandler',
+#            'formatter': 'verbose',
+#            'facility': 'local1',
+#            'address': '/var/log'
+#        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file_timed_rotating'],
+            'level': 'INFO',
+        },
+        'scrap': {
+            'handlers': ['file_timed_rotating'],
+            #'propagate': True,
+            'level': 'DEBUG',
+        },
+    }
 }
 
 
