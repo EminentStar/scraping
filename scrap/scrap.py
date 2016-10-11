@@ -79,9 +79,14 @@ def get_url_from_request(request):
 
     :param request: 뷰단에서 넘어온 url
     :return: 사용자가 입력한 url
-    """
-    response = dict(request.POST) 
-    url = response['url'][0]
+    """ 
+    
+    if request.method == 'POST':
+        response = dict(request.POST) 
+        url = response['url'][0]
+    elif request.method == 'GET':
+        url = request.GET['url']
+
     return url
 
 

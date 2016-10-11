@@ -8,4 +8,5 @@ urlpatterns = [
 
     url(r'^admin/', include(admin.site.urls)),
     url(r'^$', include('scrap.urls')),
+    url(r'^apitest/', 'scrap.views.apitest' ),
 ]
