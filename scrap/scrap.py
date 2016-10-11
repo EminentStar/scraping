@@ -14,6 +14,8 @@ PORT_IDX = 1
 
 LOGGER = logging.getLogger(__name__)
 
+conns = {}
+
 
 def scrap_url_cached(request, chashing):
     """
@@ -66,7 +68,9 @@ def is_scrapped_from_caches(url, cached_node):
     :param url: 사용자가 입력한 url
     :return: 캐싱되어있으면 url API 데이터(JSON), 없으면 None을 반환함.
     """
-    node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+
+    node_client = check_cache_server_list(conns, cached_node)
+
     scrapped_data = get_data_from_cache(url, node_client)
     if scrapped_data:
         LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'GET', url))
@@ -151,9 +155,21 @@ def save_data_to_cache(url, api_str, chashing):
     """
     cached_node = chashing.find_node_with_value(url)
     url_hash = chashing._hash(url)[0]
-    node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+
+    node_client = check_cache_server_list(conns, cached_node)
+
     set_data_to_cache(url_hash, api_str, node_client)
     LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'SET', url))
+
+
+def check_cache_server_list(conns, cached_node):
+    if cached_node[HOST_IDX] in conns:
+        node_client = conns[cached_node[HOST_IDX]]
+    else:
+        node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+        conns[cached_node[HOST_IDX]] = node_client
+    return node_client
+
 
 
 def set_data_to_cache(url_hash, api_str, node_client):
