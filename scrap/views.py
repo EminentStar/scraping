@@ -8,10 +8,15 @@ BeautifulSoup: 웹 스크래핑을 위함
 from django.shortcuts import render
 import redis
 import logging
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+from django.http import JsonResponse
+
 
 from .forms import UrlForm
 from .consistent_hashing import ConsistentHashingPartitioning
 from .scrap import scrap_url_cached
+from . import log_generator
 
 # Create your views here.
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +39,6 @@ vnode_counts = 40
 
 chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
 
-print(chashing.continuum)
 
 def main_view(request):
     """
@@ -46,16 +50,21 @@ def main_view(request):
     GET:param request: request
     GET:return: 새로고침된 main_view.html이 렌더링된 것을 리턴
     """
+    print("main_view") 
     dict_return = {}
     form = UrlForm()
-
+    
+    LOGGER.info(log_generator.http_request_log_json(request))
     if request.method == 'POST':  # 웹 스크래핑 버튼을 눌렀을 때
-        #LOGGER.warning('POST method')
         api = scrap_url_cached(request, chashing)
         dict_return['api'] = api
-    #else:  # 새로고침을 했을 때
-        #LOGGER.warning('GET method')
 
     dict_return['form'] = form
     return render(request, 'scrap/main_view.html', dict_return)
 
+
+@csrf_exempt
+def apitest(request):
+    api = scrap_url_cached(request, chashing)
+    dict_return = api
+    return JsonResponse(dict_return)

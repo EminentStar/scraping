@@ -6,4 +6,5 @@ from . import views
 
 urlpatterns = [
     url(r'^$', views.main_view, name='main_view'),
+    url(r'^apitest', views.apitest, name='apitest'),
 ]

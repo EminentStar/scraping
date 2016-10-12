@@ -4,14 +4,17 @@ import re
 import redis
 import requests
 from bs4 import BeautifulSoup
+import json
 
 from .models import ScrappedUrl
-
+from . import log_generator
 
 HOST_IDX = 0
 PORT_IDX = 1
 
 LOGGER = logging.getLogger(__name__)
+
+conns = {}
 
 
 def scrap_url_cached(request, chashing):
@@ -27,15 +30,13 @@ def scrap_url_cached(request, chashing):
     cached_node = chashing.find_node_with_value(url)
     
     if 'action_scrap_cached' in request.POST:
-        #LOGGER.warning('Scrap Cached')
         scrapped_data = is_scrapped_from_caches(url, cached_node)
-        if scrapped_data is not None:  # scrap된 적이 있는 url인지 확인
-            #LOGGER.warning("url info ALREADY exists")
+        if scrapped_data:  # scrap된 적이 있는 url인지 확인
             # scrapped_data를 스트링에서 json화시킨다.
             api = eval(scrapped_data)
             return api
 
-    #LOGGER.warning('Scrap New')
+    #새로운 스크랩
     return get_api_cache(url, chashing)
 
 
@@ -53,12 +54,10 @@ def scrap_url(request):
     url = reconstitute_url(url)
 
     if 'action_scrap_cached' in request.POST:
-        #LOGGER.warning('Scrap Cached')
-        if is_scrapped(url) is True:  # scrap된 적이 있는 url인지 확인
-            #LOGGER.warning("url info ALREADY exists")
+        if is_scrapped(url):  # scrap된 적이 있는 url인지 확인
             return get_api_from_database(url)
 
-    #LOGGER.warning('Scrap New')
+    #새로운 스크랩
     return get_api(url)
 
 
@@ -69,8 +68,12 @@ def is_scrapped_from_caches(url, cached_node):
     :param url: 사용자가 입력한 url
     :return: 캐싱되어있으면 url API 데이터(JSON), 없으면 None을 반환함.
     """
-    node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+
+    node_client = check_cache_server_list(conns, cached_node)
+
     scrapped_data = get_data_from_cache(url, node_client)
+    if scrapped_data:
+        LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'GET', url))
     return scrapped_data
 
 
@@ -80,9 +83,14 @@ def get_url_from_request(request):
 
     :param request: 뷰단에서 넘어온 url
     :return: 사용자가 입력한 url
-    """
-    response = dict(request.POST) 
-    url = response['url'][0]
+    """ 
+    
+    if request.method == 'POST':
+        response = dict(request.POST) 
+        url = response['url'][0]
+    elif request.method == 'GET':
+        url = request.GET['url']
+
     return url
 
 
@@ -114,25 +122,29 @@ def get_api_cache(url, chashing):
         scrapped_time,
         expiry_time
     """
-    #LOGGER.warning("Entry of get_api method")
+    curr_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     api = {}
+    is_error = False
+    curr_time = log_generator.get_curr_time()
+
     try:
         response = requests.get(url)
-        #LOGGER.warning("After request url")
         api = constitute_api(response)
         # api 문자열을 알맞은 레디스 서버에 캐싱한다.
         api_str = str(api)
         save_data_to_cache(url, api_str, chashing)        
     except ConnectionError as err:
-        #LOGGER.error(err)
-        print(err)
-
+        # 로그 추가
+        LOGGER.error(log_generator.scrap_error_log_json(curr_time, url, err))
+        is_error = True
+    
+    LOGGER.info(log_generator.scrap_request_log_json(curr_time, url, is_error))
     return api
 
 
 def get_data_from_cache(url, node_client):
     data = node_client.get(url)
-    if data is not None:
+    if data:
         data = data.decode()
     return data
 
@@ -143,10 +155,21 @@ def save_data_to_cache(url, api_str, chashing):
     """
     cached_node = chashing.find_node_with_value(url)
     url_hash = chashing._hash(url)[0]
-    #LOGGER.warning(type(url_hash))
-    #LOGGER.warning(url_hash)
-    node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+
+    node_client = check_cache_server_list(conns, cached_node)
+
     set_data_to_cache(url_hash, api_str, node_client)
+    LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'SET', url))
+
+
+def check_cache_server_list(conns, cached_node):
+    if cached_node[HOST_IDX] in conns:
+        node_client = conns[cached_node[HOST_IDX]]
+    else:
+        node_client = redis.StrictRedis(host = cached_node[HOST_IDX], port = cached_node[PORT_IDX])
+        conns[cached_node[HOST_IDX]] = node_client
+    return node_client
+
 
 
 def set_data_to_cache(url_hash, api_str, node_client):
@@ -172,9 +195,7 @@ def get_api_from_database(url):
     :return: 캐싱된 API
     """
     api_object = ScrappedUrl.objects.filter(input_url=url)
-    #LOGGER.warning(api_object)
     api_dict = list(api_object)[0]
-    #LOGGER.warning(api_dict)
     return {
         'title': api_dict.title,
         'url': api_dict.url,
@@ -200,16 +221,13 @@ def get_api(url):
         scrapped_time,
         expiry_time
     """
-    #LOGGER.warning("Entry of get_api method")
     api = {}
     try:
         response = requests.get(url)
-        #LOGGER.warning("After request url")
         api = constitute_api(response)
         save_scrappedurl_object(api, url)
     except ConnectionError as err:
-        #LOGGER.error(err)
-        print(err)
+       LOGGER.error(log_generator.other_errors_log_json(err))
 
     return api
 
@@ -240,7 +258,6 @@ def get_tags(html):
         og:image,
         og:description
     """
-    #LOGGER.warning("entry of get_tags method")
     soup = BeautifulSoup(html, "lxml")
     og_title = soup.find('meta', property='og:title')
     og_url = soup.find('meta', property='og:url')
@@ -264,8 +281,6 @@ def get_time_api():
     """
     scrapped_time = datetime.datetime.now()
     expiry_time = scrapped_time + datetime.timedelta(days=1)
-    #LOGGER.warning(scrapped_time.strftime("%Y-%m-%d %H:%M"))
-    #LOGGER.warning(expiry_time.strftime("%Y-%m-%d %H:%M"))
     return {
         'scrapped_time': scrapped_time,
         'expiry_time': expiry_time,
@@ -290,7 +305,6 @@ def save_scrappedurl_object(api, input_url):
                              scrapped_time=api['scrapped_time'],
                              expiry_time=api['expiry_time'])
 
-    #LOGGER.warning(url_object)
     url_object.save()
 
 
