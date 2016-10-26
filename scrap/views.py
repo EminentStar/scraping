@@ -11,6 +11,8 @@ import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from django.http import JsonResponse
+from kazoo.client import KazooClient
+from kazoo.client import KazooState
 
 
 from .forms import UrlForm
@@ -21,23 +23,33 @@ from . import log_generator
 # Create your views here.
 LOGGER = logging.getLogger(__name__)
 
-IP = 'localhost'
-PORT_1 = 6379
-PORT_2 = 6380
-PORT_3 = 6381
-
-redis_client1 = redis.StrictRedis(host = IP, port = PORT_1)
-redis_client2 = redis.StrictRedis(host = IP, port = PORT_2)
-redis_client3 = redis.StrictRedis(host = IP, port = PORT_3)
-
-nodelist = []
-nodelist.append((IP, str(PORT_1)))
-nodelist.append((IP, str(PORT_2)))
-nodelist.append((IP, str(PORT_3)))
-
 vnode_counts = 40 
 
-chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
+#zk = KazooClient(hosts='127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183')
+zk = KazooClient(hosts='127.0.0.1:2181')
+
+zk.start()
+
+@zk.ChildrenWatch("/workers")
+def watch_redis_servers(children):
+    root = "/workers"
+    print("Children are now: %s" % (children))
+    nodelist = []
+
+    for child in children:
+        host = zk.get(root + "/" + child)[0].decode()
+        print(host)
+        
+        status_child = zk.get_children(root + "/" + child + "/status")[0]
+        print("status is %s" %(status_child))
+        
+        ip, port = host.split(':')
+        print("ip: %s, port: %s" % (ip, port))
+
+        if status_child == 'ok':
+            nodelist.append((ip, port))
+
+    chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
 
 
 def main_view(request):
