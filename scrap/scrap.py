@@ -72,8 +72,9 @@ def is_scrapped_from_caches(url, cached_node):
     node_client = check_cache_server_list(conns, cached_node)
 
     scrapped_data = get_data_from_cache(url, node_client)
-    if scrapped_data:
-        LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'GET', url))
+    #if scrapped_data:
+        #LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'GET', url))
+        
     return scrapped_data
 
 
@@ -135,10 +136,11 @@ def get_api_cache(url, chashing):
         save_data_to_cache(url, api_str, chashing)        
     except ConnectionError as err:
         # 로그 추가
-        LOGGER.error(log_generator.scrap_error_log_json(curr_time, url, err))
+        #LOGGER.error(log_generator.scrap_error_log_json(curr_time, url, err))
+        print(err)
         is_error = True
     
-    LOGGER.info(log_generator.scrap_request_log_json(curr_time, url, is_error))
+    #LOGGER.info(log_generator.scrap_request_log_json(curr_time, url, is_error))
     return api
 
 
@@ -159,7 +161,7 @@ def save_data_to_cache(url, api_str, chashing):
     node_client = check_cache_server_list(conns, cached_node)
 
     set_data_to_cache(url_hash, api_str, node_client)
-    LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'SET', url))
+    #LOGGER.info(log_generator.cache_access_log_json(cached_node[HOST_IDX], 'SET', url))
 
 
 def check_cache_server_list(conns, cached_node):
@@ -227,7 +229,8 @@ def get_api(url):
         api = constitute_api(response)
         save_scrappedurl_object(api, url)
     except ConnectionError as err:
-       LOGGER.error(log_generator.other_errors_log_json(err))
+       #LOGGER.error(log_generator.other_errors_log_json(err))
+       print(err)
 
     return api
 

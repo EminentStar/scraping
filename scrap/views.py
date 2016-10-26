@@ -54,7 +54,7 @@ def main_view(request):
     dict_return = {}
     form = UrlForm()
     
-    LOGGER.info(log_generator.http_request_log_json(request))
+    LOGGER.info(request.method)
     if request.method == 'POST':  # 웹 스크래핑 버튼을 눌렀을 때
         api = scrap_url_cached(request, chashing)
         dict_return['api'] = api
@@ -67,4 +67,5 @@ def main_view(request):
 def apitest(request):
     api = scrap_url_cached(request, chashing)
     dict_return = api
+    LOGGER.info(request.method)
     return JsonResponse(dict_return)
