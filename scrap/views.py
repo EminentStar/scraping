@@ -24,32 +24,32 @@ from . import log_generator
 LOGGER = logging.getLogger(__name__)
 
 vnode_counts = 40 
+rebuild_counts = 0
+chashing = ""
 
 #zk = KazooClient(hosts='127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183')
 zk = KazooClient(hosts='127.0.0.1:2181')
 
 zk.start()
 
-@zk.ChildrenWatch("/workers")
+@zk.ChildrenWatch("/workers/redis")
 def watch_redis_servers(children):
-    root = "/workers"
-    print("Children are now: %s" % (children))
+    global rebuild_counts, chashing
+    root = "/workers/redis"
+    print("%d Children are now: %s" % (len(children), children))
     nodelist = []
 
     for child in children:
-        host = zk.get(root + "/" + child)[0].decode()
-        print(host)
-        
-        status_child = zk.get_children(root + "/" + child + "/status")[0]
-        print("status is %s" %(status_child))
-        
-        ip, port = host.split(':')
+        ip, port = child.split(':')
         print("ip: %s, port: %s" % (ip, port))
+        nodelist.append((ip, port))
+    
+    if rebuild_counts == 0:
+        chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
+    else:
+        chashing.rebuild(nodelist)
 
-        if status_child == 'ok':
-            nodelist.append((ip, port))
-
-    chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
+    rebuild_counts += 1
 
 
 def main_view(request):
