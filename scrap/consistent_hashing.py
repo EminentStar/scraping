@@ -35,6 +35,7 @@ class ConsistentHashingPartitioning:
 
     
     def rebuild(self, nodelist):
+        self.nodelist = nodelist
         continuum = [(hname, value, vnode, self._hash("%s:%s:%s" % (hname, value, vnode))) \
                 for hname, value in nodelist \
                 for vnode in range(self.vnode_counts) 
