@@ -108,43 +108,22 @@ LOGGING = {
             'format': '%(levelname)s %(message)s'
         },
         'http_request': {
-            'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
-            'datefmt': "%d/%b/%Y %H:%M:%S"
+            'format' : "[%(asctime)s] %(message)s",
+            'datefmt': "%Y/%b/%d %H:%M:%S"
         },
     },
     'handlers': {
         'file': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/%s.log' % 
-                        (datetime.datetime.now().strftime('%Y-%m-%d'))),
-            'formatter': 'verbose'
+            'filename': '/tmp/scrap.log',
+            'formatter': 'http_request'
         },
-        'file_timed_rotating': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/%s.log' % 
-                        (datetime.datetime.now().strftime('%Y-%m-%d'))),
-            'formatter': 'verbose',
-            'when': 'midnight',
-        },
-#        'syslog': {
-#            'level': 'DEBUG',
-#            'class': 'logging.handlers.SysLogHandler',
-#            'formatter': 'verbose',
-#            'facility': 'local1',
-#            'address': '/var/log'
-#        },
     },
     'loggers': {
-        'django': {
-            'handlers': ['file_timed_rotating'],
-            'level': 'INFO',
-        },
         'scrap': {
-            'handlers': ['file_timed_rotating'],
-            #'propagate': True,
-            'level': 'DEBUG',
+            'handlers': ['file'],
+            'level': 'INFO',
         },
     }
 }
