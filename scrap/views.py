@@ -5,54 +5,52 @@ re: 정규표현식 검색을 위함
 requests: http 요청을 하기 위함
 BeautifulSoup: 웹 스크래핑을 위함
 """
-from django.shortcuts import render
-import redis
 import logging
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse
 from django.http import JsonResponse
 from kazoo.client import KazooClient
-from kazoo.client import KazooState
 
 
 from .forms import UrlForm
 from .consistent_hashing import ConsistentHashingPartitioning
 from .scrap import scrap_url_cached
-from . import log_generator
 
-# Create your views here.
+
 LOGGER = logging.getLogger(__name__)
 
-vnode_counts = 40 
-rebuild_counts = 0
-chashing = ""
+VNODE_COUNTS = 40
+REBUILD_COUNTS = 0
+CHASHING = ""
 
 #zk = KazooClient(hosts='127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183')
 zk = KazooClient(hosts='127.0.0.1:2181')
 
 try:
     zk.start(timeout=5)
-except Exception as e:
-    print(e)
+except Exception as error:
+    print(error)
 
 @zk.ChildrenWatch("/workers/redis")
 def watch_redis_servers(children):
-    global rebuild_counts, chashing
-    root = "/workers/redis"
+    """
+        For watching redis servers and rebuilding them
+    """
+    global REBUILD_COUNTS, CHASHING
     print("%d Children are now: %s" % (len(children), children))
     nodelist = []
 
     for child in children:
-        ip, port = child.split(':')
-        print("ip: %s, port: %s" % (ip, port))
-        nodelist.append((ip, port))
-    
-    if rebuild_counts == 0:
-        chashing = ConsistentHashingPartitioning(nodelist, vnode_counts)
-    else:
-        chashing.rebuild(nodelist)
+        ip_addr, port = child.split(':')
+        print("ip: %s, port: %s" % (ip_addr, port))
+        nodelist.append((ip_addr, port))
 
-    rebuild_counts += 1
+    if REBUILD_COUNTS == 0:
+        CHASHING = ConsistentHashingPartitioning(nodelist, VNODE_COUNTS)
+    else:
+        CHASHING.rebuild(nodelist)
+
+    REBUILD_COUNTS += 1
 
 
 def main_view(request):
@@ -65,13 +63,13 @@ def main_view(request):
     GET:param request: request
     GET:return: 새로고침된 main_view.html이 렌더링된 것을 리턴
     """
-    print("main_view") 
+    print("main_view")
     dict_return = {}
     form = UrlForm()
-    
+
     LOGGER.info(request.method)
     if request.method == 'POST':  # 웹 스크래핑 버튼을 눌렀을 때
-        api = scrap_url_cached(request, chashing)
+        api = scrap_url_cached(request, CHASHING)
         dict_return['api'] = api
 
     dict_return['form'] = form
@@ -80,7 +78,10 @@ def main_view(request):
 
 @csrf_exempt
 def apitest(request):
-    api = scrap_url_cached(request, chashing)
+    """
+        For testing api
+    """
+    api = scrap_url_cached(request, CHASHING)
     dict_return = api
     LOGGER.info(request.method)
     return JsonResponse(dict_return)
