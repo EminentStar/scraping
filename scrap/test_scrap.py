@@ -7,6 +7,8 @@ from .scrap import is_scrapped
 from .scrap import constitute_api 
 from .scrap import get_api_from_database 
 from .scrap import save_scrappedurl_object
+from .scrap import is_scrapped
+from .scrap import get_api_from_database
 
 
 class ScrapTests(TestCase):
@@ -44,5 +46,18 @@ class ScrapTests(TestCase):
         response_1 = constitute_api(requests.get(url_1))
 
         self.assertNotEqual(response_1, {})
-        
+   
+    def test_is_scrapped(self):
+        url = 'http://www.test.com'
+        response = is_scrapped(url)
+        self.assertEquals(response, False)
+
+
+    def test_get_api_from_database(self):
+        url = 'http://www.test.com'
+        response = get_api_from_database(url)
+        print(response)
+        self.assertEquals(response, {'error':'NoExists'})
+
+
 
