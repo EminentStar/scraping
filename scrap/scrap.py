@@ -201,16 +201,29 @@ def get_api_from_database(url):
     :return: 캐싱된 API
     """
     api_object = ScrappedUrl.objects.filter(input_url=url)
-    api_dict = list(api_object)[0]
-    return {
-        'title': api_dict.title,
-        'url': api_dict.url,
-        'type': api_dict.type,
-        'image': api_dict.image,
-        'description': api_dict.description,
-        'scrapped_time': api_dict.scrapped_time,
-        'expiry_time': api_dict.expiry_time,
-    }
+
+    if len(api_object) is 0:
+        """
+            현재의 로직에서는 이런 상황이 있을 수 없다.
+            지금은 우선 이렇게 처리하되,
+            에러상황을 throw 던지도록 해야겠다.
+        """
+        ret_val = {
+            'error': 'NoExists'
+        }
+    else:
+        api_dict = list(api_object)[0]
+        ret_val = {
+            'title': api_dict.title,
+            'url': api_dict.url,
+            'type': api_dict.type,
+            'image': api_dict.image,
+            'description': api_dict.description,
+            'scrapped_time': api_dict.scrapped_time,
+            'expiry_time': api_dict.expiry_time,
+        }
+
+    return ret_val
 
 
 def get_api(url):
