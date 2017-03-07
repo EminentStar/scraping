@@ -2,13 +2,13 @@ from django.test import TestCase
 import requests
 
 
-from .scrap import reconstitute_url
-from .scrap import is_scrapped
-from .scrap import constitute_api 
-from .scrap import get_api_from_database 
-from .scrap import save_scrappedurl_object
-from .scrap import is_scrapped
-from .scrap import get_api_from_database
+from scrap.scrap import reconstitute_url
+from scrap.scrap import is_scrapped
+from scrap.scrap import constitute_api 
+from scrap.scrap import get_api_from_database 
+from scrap.scrap import save_scrappedurl_object
+from scrap.scrap import is_scrapped
+from scrap.scrap import get_api_from_database
 
 
 class ScrapTests(TestCase):
